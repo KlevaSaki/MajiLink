@@ -1,73 +1,57 @@
-# React + TypeScript + Vite
+# MajiLink – Customer Dashboard Module
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## File structure
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── types/
+│   └── index.ts                  # All shared TypeScript types
+├── data/
+│   └── mockData.ts               # localStorage seed data
+├── store/
+│   └── useCustomerStore.ts       # Zustand store (persisted to localStorage)
+└── components/
+    └── customer/
+        ├── CustomerDashboard.tsx  # Main dashboard page
+        ├── OrderTracker.tsx       # Active order progress rail + driver card
+        ├── TopUpModal.tsx         # Wallet top-up sheet
+        └── PlaceOrderModal.tsx    # New order flow (vendor select + quantity)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Usage
+
+Drop `CustomerDashboard` into your router:
+
+```tsx
+// App.tsx / router config
+import CustomerDashboard from "./components/customer/CustomerDashboard";
+
+<Route path="/customer" element={<CustomerDashboard />} />
+```
+
+## Zustand store
+
+The store is persisted to `localStorage` under the key `majilink-customer`.
+To reset it during development:
 
 ```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+localStorage.removeItem("majilink-customer");
 ```
+
+## Supabase migration (later)
+
+When ready, replace the `persist` middleware storage with Supabase calls:
+
+1. `getActiveOrder` / `getRecentOrders` → `supabase.from("orders").select()`
+2. `placeOrder` → `supabase.from("orders").insert()`
+3. `cancelOrder` → `supabase.from("orders").update({ status: "cancelled" })`
+4. `topUpWallet` → trigger M-Pesa STK push → update `profiles.wallet_balance`
+
+## Dependencies
+
+```bash
+npm install zustand lucide-react
+```
+
+
+
