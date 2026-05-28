@@ -23,7 +23,7 @@ const AVATAR_COLORS = [
   "bg-[#FFF7ED] text-[#854F0B]",
 ];
 
-export default function DriversList({ drivers, onRemove, onUpdateStatus }: Props) {
+export default function DriversList({ drivers, onRemove }: Props) {
   if (drivers.length === 0) {
     return (
       <div className="bg-white border border-[#D6D3D1] rounded-2xl p-6 text-center">
