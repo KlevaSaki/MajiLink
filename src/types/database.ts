@@ -1,5 +1,14 @@
 export type UserRole = "customer" | "vendor" | "driver";
 
+export type OrderStatusDB =
+  | "pending"
+  | "confirmed"
+  | "assigned"
+  | "en_route"
+  | "delivered"
+  | "cancelled"
+  | "declined";
+
 export interface Database {
   public: {
     Tables: {
@@ -34,6 +43,8 @@ export interface Database {
           owner_id: string;
           business_name: string;
           location: string | null;
+          latitude: number | null;
+          longitude: number | null;
           is_open: boolean;
           rating: number;
         };
@@ -41,6 +52,8 @@ export interface Database {
           owner_id: string;
           business_name: string;
           location?: string | null;
+          latitude?: number | null;
+          longitude?: number | null;
           is_open?: boolean;
           rating?: number;
         };
@@ -53,6 +66,9 @@ export interface Database {
           profile_id: string;
           business_id: number;
           vehicle_type: string;
+          // Canonical status vocabulary — matches VendorDriver in types/vendor.ts.
+          // driver.ts's own DriverStatus should be aligned to this set too
+          // ("online" → "available") rather than kept as a separate enum.
           status: "available" | "on_delivery" | "offline";
           rating: number;
           total_reviews: number;
@@ -77,6 +93,10 @@ export interface Database {
           price_per_unit: number;
           stock: number;
           max_stock: number;
+          category: "water" | "lpg" | null;
+          brand: string | null;
+          variant: string | null;
+          image_url: string | null;
         };
         Insert: {
           business_id: number;
@@ -85,6 +105,10 @@ export interface Database {
           price_per_unit: number;
           stock?: number;
           max_stock?: number;
+          category?: "water" | "lpg" | null;
+          brand?: string | null;
+          variant?: string | null;
+          image_url?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["product"]["Insert"]>;
       };
@@ -98,8 +122,10 @@ export interface Database {
           driver_id: number | null;
           quantity: number;
           total_amount: number;
-          status: "pending" | "confirmed" | "en_route" | "delivered" | "cancelled";
+          status: OrderStatusDB;
           delivery_address: string;
+          delivery_lat: number | null;
+          delivery_lng: number | null;
           delivered_at: string | null;
         };
         Insert: {
@@ -109,8 +135,10 @@ export interface Database {
           driver_id?: number | null;
           quantity: number;
           total_amount: number;
-          status?: "pending" | "confirmed" | "en_route" | "delivered" | "cancelled";
+          status?: OrderStatusDB;
           delivery_address: string;
+          delivery_lat?: number | null;
+          delivery_lng?: number | null;
           delivered_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;

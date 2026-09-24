@@ -1,17 +1,17 @@
-import { Phone } from "lucide-react";
+import { Phone, ClipboardList, CheckCircle2, Bike, Home, Store, Check } from "lucide-react";
 import type { Order, OrderStatus } from "../../../types/index";
 
 interface Step {
   key: OrderStatus;
   label: string;
-  icon: string;
+  Icon: typeof ClipboardList;
 }
 
 const STEPS: Step[] = [
-  { key: "pending", label: "Placed", icon: "📋" },
-  { key: "confirmed", label: "Confirmed", icon: "✅" },
-  { key: "en_route", label: "En route", icon: "🚴" },
-  { key: "delivered", label: "Delivered", icon: "🏠" },
+  { key: "pending", label: "Placed", Icon: ClipboardList },
+  { key: "confirmed", label: "Confirmed", Icon: CheckCircle2 },
+  { key: "en_route", label: "En route", Icon: Bike },
+  { key: "delivered", label: "Delivered", Icon: Home },
 ];
 
 const STATUS_ORDER: OrderStatus[] = ["pending", "confirmed", "en_route", "delivered"];
@@ -35,14 +35,14 @@ export default function OrderTracker({ order, onCancel }: Props) {
       {/* Vendor + status */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#E1F5EE] flex items-center justify-center shrink-0">
-          <span className="text-lg">🏪</span>
+          <Store className="w-5 h-5 text-[#0F6E56]" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-[#134E4A] text-sm truncate">
             {order.item.vendorName}
           </p>
           <p className="text-xs text-gray-500 mt-0.5">
-            {order.item.quantity} × 20L · KSh {order.totalAmount.toLocaleString()}
+            {order.item.quantity} × {order.item.productName} · KSh {order.totalAmount.toLocaleString()}
           </p>
         </div>
         <span
@@ -66,11 +66,12 @@ export default function OrderTracker({ order, onCancel }: Props) {
       <div className="flex items-start">
         {STEPS.map((step, i) => {
           const state = getStepState(step.key, order.status);
+          const StepIcon = step.Icon;
           return (
             <div key={step.key} className="flex items-start flex-1">
               <div className="flex flex-col items-center flex-1">
                 <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-colors ${
+                  className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
                     state === "done"
                       ? "bg-[#134E4A] text-white"
                       : state === "active"
@@ -78,7 +79,11 @@ export default function OrderTracker({ order, onCancel }: Props) {
                       : "border-2 border-[#D6D3D1] bg-white text-gray-400"
                   }`}
                 >
-                  {state === "done" ? "✓" : step.icon}
+                  {state === "done" ? (
+                    <Check className="w-3.5 h-3.5" />
+                  ) : (
+                    <StepIcon className="w-3.5 h-3.5" />
+                  )}
                 </div>
                 <p
                   className={`text-[10px] mt-1.5 text-center leading-tight ${

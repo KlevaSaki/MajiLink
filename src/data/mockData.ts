@@ -1,4 +1,4 @@
-import type { User, Order, Vendor, WalletState } from "../types/index";
+import type { User, Order } from "../types/index";
 
 export const MOCK_USER: User = {
   id: "usr_001",
@@ -8,39 +8,9 @@ export const MOCK_USER: User = {
   role: "customer",
   avatarInitials: "JM",
   location: "Eldoret, Uasin Gishu",
+  latitude: 0.5143,
+  longitude: 35.2698,
 };
-
-export const MOCK_WALLET: WalletState = {
-  balance: 1250,
-  bonusCredit: 200,
-};
-
-export const MOCK_VENDORS: Vendor[] = [
-  {
-    id: "vnd_001",
-    name: "Maji Fresh Vendors",
-    location: "Eldoret Town",
-    rating: 4.8,
-    pricePerJerrican: 200,
-    available: true,
-  },
-  {
-    id: "vnd_002",
-    name: "Uasin Springs",
-    location: "Langas, Eldoret",
-    rating: 4.5,
-    pricePerJerrican: 180,
-    available: true,
-  },
-  {
-    id: "vnd_003",
-    name: "Eldoret Water Co.",
-    location: "Huruma, Eldoret",
-    rating: 4.2,
-    pricePerJerrican: 200,
-    available: false,
-  },
-];
 
 export const MOCK_ORDERS: Order[] = [
   {
@@ -49,8 +19,12 @@ export const MOCK_ORDERS: Order[] = [
     item: {
       vendorId: "vnd_001",
       vendorName: "Maji Fresh Vendors",
+      productId: "inv_001",
+      productName: "20L jerrican",
+      category: "water",
       quantity: 2,
       unitPrice: 200,
+      unit: "units",
     },
     status: "en_route",
     driver: {
@@ -70,8 +44,12 @@ export const MOCK_ORDERS: Order[] = [
     item: {
       vendorId: "vnd_001",
       vendorName: "Maji Fresh Vendors",
+      productId: "inv_001",
+      productName: "20L jerrican",
+      category: "water",
       quantity: 3,
       unitPrice: 200,
+      unit: "units",
     },
     status: "delivered",
     totalAmount: 600,
@@ -84,11 +62,15 @@ export const MOCK_ORDERS: Order[] = [
     item: {
       vendorId: "vnd_002",
       vendorName: "Uasin Springs",
+      productId: "sup2_inv_003",
+      productName: "Dasani 20L",
+      category: "water",
       quantity: 1,
-      unitPrice: 180,
+      unitPrice: 350,
+      unit: "bottle",
     },
     status: "delivered",
-    totalAmount: 180,
+    totalAmount: 350,
     createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
     deliveredAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
   },
@@ -98,11 +80,15 @@ export const MOCK_ORDERS: Order[] = [
     item: {
       vendorId: "vnd_003",
       vendorName: "Eldoret Water Co.",
+      productId: "sup3_inv_002",
+      productName: "Refilling Water 20L",
+      category: "water",
       quantity: 2,
-      unitPrice: 200,
+      unitPrice: 190,
+      unit: "jerrican",
     },
     status: "cancelled",
-    totalAmount: 400,
+    totalAmount: 380,
     createdAt: new Date(Date.now() - 11 * 24 * 60 * 60 * 1000).toISOString(),
   },
 ];

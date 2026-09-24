@@ -7,6 +7,8 @@ interface Props {
   onUpdateStatus: (id: string, status: VendorDriver["status"]) => void;
 }
 
+const STATUS_OPTIONS: VendorDriver["status"][] = ["available", "on_delivery", "offline"];
+
 const STATUS_CONFIG: Record<
   VendorDriver["status"],
   { label: string; className: string }
@@ -23,7 +25,7 @@ const AVATAR_COLORS = [
   "bg-[#FFF7ED] text-[#854F0B]",
 ];
 
-export default function DriversList({ drivers, onRemove }: Props) {
+export default function DriversList({ drivers, onRemove, onUpdateStatus }: Props) {
   if (drivers.length === 0) {
     return (
       <div className="bg-white border border-[#D6D3D1] rounded-2xl p-6 text-center">
@@ -39,7 +41,7 @@ export default function DriversList({ drivers, onRemove }: Props) {
   return (
     <div className="space-y-2.5">
       {drivers.map((driver, i) => {
-        const { label, className } = STATUS_CONFIG[driver.status];
+        const { className } = STATUS_CONFIG[driver.status];
         const avatarColor = AVATAR_COLORS[i % AVATAR_COLORS.length];
 
         return (
@@ -66,7 +68,18 @@ export default function DriversList({ drivers, onRemove }: Props) {
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <span className={`text-xs font-medium ${className}`}>{label}</span>
+              <select
+                value={driver.status}
+                onChange={(e) => onUpdateStatus(driver.id, e.target.value as VendorDriver["status"])}
+                className={`text-xs font-medium bg-transparent border border-[#D6D3D1] rounded-lg pl-2 pr-1 py-1 focus:outline-none focus:ring-2 focus:ring-[#4FD1C5] ${className}`}
+                aria-label={`Change status for ${driver.name}`}
+              >
+                {STATUS_OPTIONS.map((s) => (
+                  <option key={s} value={s} className="text-gray-700">
+                    {STATUS_CONFIG[s].label}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={() => onRemove(driver.id)}
                 className="w-7 h-7 rounded-xl border border-[#D6D3D1] flex items-center justify-center hover:border-red-300 transition"

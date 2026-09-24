@@ -12,6 +12,8 @@ export const MOCK_VENDOR_PROFILE: VendorProfile = {
   ownerName: "Samuel Kipchoge",
   phone: "+254711223344",
   location: "Eldoret Town, Uasin Gishu",
+  latitude: 0.5167,
+  longitude: 35.2833,
   isOpen: true,
   rating: 4.8,
   avatarInitials: "MF",
@@ -91,6 +93,7 @@ export const MOCK_VENDOR_ORDERS: VendorOrder[] = [
 export const MOCK_INVENTORY: InventoryItem[] = [
   {
     id: "inv_001",
+    category: "water",
     name: "20L jerrican",
     stock: 142,
     maxStock: 200,
@@ -99,6 +102,7 @@ export const MOCK_INVENTORY: InventoryItem[] = [
   },
   {
     id: "inv_002",
+    category: "water",
     name: "10L jerrican",
     stock: 38,
     maxStock: 200,
@@ -107,6 +111,7 @@ export const MOCK_INVENTORY: InventoryItem[] = [
   },
   {
     id: "inv_003",
+    category: "water",
     name: "5L bottle",
     stock: 87,
     maxStock: 200,

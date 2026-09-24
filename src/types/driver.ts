@@ -1,4 +1,4 @@
-export type DriverStatus = "online" | "offline" | "on_delivery";
+export type DriverStatus = "available" | "offline" | "on_delivery";
 
 export type TripStatus = "assigned" | "en_route" | "delivered" | "cancelled";
 
@@ -38,6 +38,10 @@ export interface ActiveDelivery {
   estimatedMinutes: number;
   earningsForTrip: number;
   assignedAt: string;
+  // Drives which action the UI shows: "assigned" needs a pickup
+  // confirmation before it can be marked delivered; "en_route" is past
+  // that point.
+  status: "assigned" | "en_route";
 }
 
 export interface CompletedTrip {
@@ -64,6 +68,10 @@ export interface DriverEarnings {
   pendingPayout: number;
 }
 
+// No per-star breakdown exists anywhere in the schema — nothing writes
+// five/four/three/two/one counts. Kept as a type for when a real rating
+// system exists, but RatingCard now treats it as optional rather than
+// any component inventing percentages to fill it.
 export interface RatingBreakdown {
   five: number;
   four: number;

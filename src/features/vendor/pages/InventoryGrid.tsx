@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { Edit2, Plus, Trash2, X, Check } from "lucide-react";
-import type { InventoryItem } from "../../../types/vendor";
+import { useEffect, useState } from "react";
+import { Edit2, Plus, Trash2, X, Check, ImageOff } from "lucide-react";
+import type { InventoryItem, InventoryCategory } from "../../../types/vendor";
+import { getCatalog, type CatalogItem } from "../../../data/vendorProductCatalog";
 
 interface Props {
+  category: InventoryCategory;
   inventory: InventoryItem[];
   onUpdateStock: (id: string, stock: number) => void;
   onUpdatePrice: (id: string, price: number) => void;
@@ -24,12 +26,35 @@ function StockBar({ stock, maxStock }: { stock: number; maxStock: number }) {
   );
 }
 
+/** Small product thumbnail with a graceful fallback if the image is missing. */
+function ProductThumb({ src, alt, size = "w-8 h-8" }: { src?: string; alt: string; size?: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div className={`${size} rounded-lg bg-[#FAFAF8] border border-[#D6D3D1] flex items-center justify-center shrink-0`}>
+        <ImageOff className="w-3.5 h-3.5 text-gray-300" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={`${size} rounded-lg object-cover shrink-0 bg-[#FAFAF8] border border-[#D6D3D1]`}
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 interface EditState {
   stock: string;
   price: string;
 }
 
 export default function InventoryGrid({
+  category,
   inventory,
   onUpdateStock,
   onUpdatePrice,
@@ -39,8 +64,31 @@ export default function InventoryGrid({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editState, setEditState] = useState<EditState>({ stock: "", price: "" });
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", stock: "", price: "", unit: "units" });
   const [addError, setAddError] = useState("");
+
+  // Catalog-driven selection: brand first, then the specific item (which
+  // carries the size/variant and the shared image).
+  const [selectedBrand, setSelectedBrand] = useState("");
+  const [selectedItemId, setSelectedItemId] = useState("");
+  const [newStock, setNewStock] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+
+  const catalog = getCatalog(category);
+  const itemsForBrand = catalog.find((b) => b.brand === selectedBrand)?.items ?? [];
+  const selectedCatalogItem: CatalogItem | undefined = itemsForBrand.find(
+    (i) => i.id === selectedItemId
+  );
+
+  // Reset the picker whenever the category tab changes so a leftover LPG
+  // brand can't get carried into the water form (or vice versa).
+  useEffect(() => {
+    setShowAddForm(false);
+    setSelectedBrand("");
+    setSelectedItemId("");
+    setNewStock("");
+    setNewPrice("");
+    setAddError("");
+  }, [category]);
 
   function startEdit(item: InventoryItem) {
     setEditingId(item.id);
@@ -56,28 +104,51 @@ export default function InventoryGrid({
   }
 
   function handleAdd() {
-    if (!newItem.name.trim()) { setAddError("Product name is required"); return; }
-    const stock = parseInt(newItem.stock, 10);
-    const price = parseInt(newItem.price, 10);
-    if (isNaN(stock) || stock < 0) { setAddError("Enter a valid stock number"); return; }
-    if (isNaN(price) || price < 1) { setAddError("Enter a valid price"); return; }
+    if (!selectedBrand) {
+      setAddError(category === "lpg" ? "Select a brand" : "Select a product line");
+      return;
+    }
+    if (!selectedCatalogItem) {
+      setAddError("Select a size / type");
+      return;
+    }
+    const stock = parseInt(newStock, 10);
+    const price = parseInt(newPrice, 10);
+    if (isNaN(stock) || stock < 0) {
+      setAddError("Enter a valid stock number");
+      return;
+    }
+    if (isNaN(price) || price < 1) {
+      setAddError("Enter a valid price");
+      return;
+    }
 
     onAdd({
       id: `inv_${Date.now()}`,
-      name: newItem.name.trim(),
+      category,
+      name: selectedCatalogItem.label,
       stock,
       maxStock: Math.max(stock, 200),
       pricePerUnit: price,
-      unit: newItem.unit,
+      unit: selectedCatalogItem.unit,
+      variant: selectedCatalogItem.variant,
+      brand: selectedCatalogItem.brand,
+      imageUrl: selectedCatalogItem.imageUrl,
     });
-    setNewItem({ name: "", stock: "", price: "", unit: "units" });
+
+    setSelectedBrand("");
+    setSelectedItemId("");
+    setNewStock("");
+    setNewPrice("");
     setAddError("");
     setShowAddForm(false);
   }
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+      {/* Single column on mobile so each product takes the full width of the
+          screen; two columns from sm: up. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {inventory.map((item) => {
           const isEditing = editingId === item.id;
           const isLow = item.stock / item.maxStock < 0.2;
@@ -88,11 +159,19 @@ export default function InventoryGrid({
               className="bg-white border border-[#D6D3D1] rounded-2xl p-3.5 space-y-1"
             >
               {/* Header */}
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-800 truncate pr-2">
-                  {item.name}
-                </p>
-                <div className="flex gap-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start gap-2 min-w-0 pr-2">
+                  <ProductThumb src={item.imageUrl} alt={item.name} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-gray-800 truncate">
+                      {item.name}
+                    </p>
+                    {item.variant && (
+                      <p className="text-[10px] text-gray-400">{item.variant}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-1.5 shrink-0">
                   {!isEditing ? (
                     <>
                       <button
@@ -135,7 +214,7 @@ export default function InventoryGrid({
               {isEditing ? (
                 <div className="space-y-1.5">
                   <div>
-                    <label className="text-[10px] text-gray-400 uppercase tracking-wide">
+                    <label className="text-[10px] text-gray-400">
                       Stock
                     </label>
                     <input
@@ -148,7 +227,7 @@ export default function InventoryGrid({
                     />
                   </div>
                   <div>
-                    <label className="text-[10px] text-gray-400 uppercase tracking-wide">
+                    <label className="text-[10px] text-gray-400">
                       Price (KSh)
                     </label>
                     <input
@@ -184,7 +263,7 @@ export default function InventoryGrid({
           );
         })}
 
-        {/* Add product tile */}
+        {/* Add product tile — full width on mobile, its own cell from sm: up */}
         <button
           onClick={() => setShowAddForm(true)}
           className="bg-white border border-dashed border-[#C5C3BB] rounded-2xl p-3.5 flex flex-col items-center justify-center gap-2 hover:border-[#4FD1C5] transition min-h-25"
@@ -192,7 +271,9 @@ export default function InventoryGrid({
           <div className="w-7 h-7 rounded-full bg-[#FAFAF8] border border-[#D6D3D1] flex items-center justify-center">
             <Plus className="w-4 h-4 text-gray-400" />
           </div>
-          <span className="text-xs text-gray-400">Add product</span>
+          <span className="text-xs text-gray-400">
+            Add {category === "lpg" ? "cylinder" : "product"}
+          </span>
         </button>
       </div>
 
@@ -200,32 +281,74 @@ export default function InventoryGrid({
       {showAddForm && (
         <div className="bg-white border border-[#D6D3D1] rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-[#134E4A]">New product</p>
+            <p className="text-sm font-semibold text-[#134E4A]">
+              {category === "lpg" ? "New LPG listing" : "New water listing"}
+            </p>
             <button onClick={() => setShowAddForm(false)}>
               <X className="w-4 h-4 text-gray-400" />
             </button>
           </div>
+
           <div className="space-y-2">
-            <input
-              type="text"
-              placeholder="Product name (e.g. 20L jerrican)"
-              value={newItem.name}
-              onChange={(e) => setNewItem((s) => ({ ...s, name: e.target.value }))}
-              className="w-full rounded-2xl border border-[#D6D3D1] px-3 py-2.5 text-sm bg-[#FAFAF8] focus:outline-none focus:ring-2 focus:ring-[#4FD1C5]"
-            />
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={selectedBrand}
+                onChange={(e) => {
+                  setSelectedBrand(e.target.value);
+                  setSelectedItemId("");
+                }}
+                className="w-full rounded-2xl border border-[#D6D3D1] px-3 py-2.5 text-sm bg-[#FAFAF8] focus:outline-none focus:ring-2 focus:ring-[#4FD1C5]"
+              >
+                <option value="">
+                  {category === "lpg" ? "Select brand" : "Select product line"}
+                </option>
+                {catalog.map((b) => (
+                  <option key={b.brand} value={b.brand}>
+                    {b.brand}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={selectedItemId}
+                onChange={(e) => setSelectedItemId(e.target.value)}
+                disabled={!selectedBrand}
+                className="w-full rounded-2xl border border-[#D6D3D1] px-3 py-2.5 text-sm bg-[#FAFAF8] focus:outline-none focus:ring-2 focus:ring-[#4FD1C5] disabled:opacity-50"
+              >
+                <option value="">Select size / type</option>
+                {itemsForBrand.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {selectedCatalogItem && (
+              <div className="flex items-center gap-2.5 bg-[#FAFAF8] border border-[#D6D3D1] rounded-2xl px-3 py-2.5">
+                <ProductThumb src={selectedCatalogItem.imageUrl} alt={selectedCatalogItem.label} size="w-10 h-10" />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-700 truncate">{selectedCatalogItem.label}</p>
+                  <p className="text-[11px] text-gray-400">
+                    Same image is used for every vendor selling this product
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-2">
               <input
                 type="number"
                 placeholder="Stock quantity"
-                value={newItem.stock}
-                onChange={(e) => setNewItem((s) => ({ ...s, stock: e.target.value }))}
+                value={newStock}
+                onChange={(e) => setNewStock(e.target.value)}
                 className="w-full rounded-2xl border border-[#D6D3D1] px-3 py-2.5 text-sm bg-[#FAFAF8] focus:outline-none focus:ring-2 focus:ring-[#4FD1C5]"
               />
               <input
                 type="number"
                 placeholder="Price (KSh)"
-                value={newItem.price}
-                onChange={(e) => setNewItem((s) => ({ ...s, price: e.target.value }))}
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
                 className="w-full rounded-2xl border border-[#D6D3D1] px-3 py-2.5 text-sm bg-[#FAFAF8] focus:outline-none focus:ring-2 focus:ring-[#4FD1C5]"
               />
             </div>
@@ -235,7 +358,7 @@ export default function InventoryGrid({
             onClick={handleAdd}
             className="w-full bg-[#134E4A] text-white rounded-2xl py-2.5 text-sm font-semibold hover:opacity-90 transition"
           >
-            Add product
+            {category === "lpg" ? "Add cylinder" : "Add product"}
           </button>
         </div>
       )}

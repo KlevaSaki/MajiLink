@@ -15,6 +15,8 @@ import ProtectedRoute from "./features/auth/routes/ProtectedRoute";
 // Dashboard pages (your existing components)
 import CustomerDashboard from "./features/customer/pages/CustomerHome";
 import VendorDashboard from "./features/vendor/pages/VendorDashboard";
+import VendorOnboarding from "./features/vendor/pages/VendorOnboarding";
+import VendorInvite from "./features/vendor/pages/VendorInvite";
 import DriverDashboard from "./features/driver/pages/DriverDashboard";
 
 export default function App() {
@@ -43,6 +45,16 @@ export default function App() {
         <Route path="/vendor" element={
           <ProtectedRoute allowedRoles={["vendor"]}>
             <VendorDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/vendor/onboarding" element={
+          <ProtectedRoute allowedRoles={["vendor"]}>
+            <VendorOnboarding />
+          </ProtectedRoute>
+        } />
+        <Route path="/vendor/invite" element={
+          <ProtectedRoute allowedRoles={["vendor"]}>
+            <VendorInvite />
           </ProtectedRoute>
         } />
         <Route path="/driver" element={

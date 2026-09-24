@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X } from "lucide-react";
+import { X, Smartphone } from "lucide-react";
 
 const QUICK_AMOUNTS = [200, 500, 1000, 2000];
 
@@ -73,8 +73,9 @@ export default function TopUpModal({ onClose, onTopUp }: Props) {
         </div>
 
         {/* M-Pesa note */}
-        <p className="text-xs text-gray-400 bg-[#FAFAF8] rounded-xl px-3 py-2">
-          💳 In production, this will trigger an M-Pesa STK push to your registered number.
+        <p className="text-xs text-gray-400 bg-[#FAFAF8] rounded-xl px-3 py-2 flex items-start gap-1.5">
+          <Smartphone className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          In production, this will trigger an M-Pesa STK push to your registered number.
         </p>
 
         <button

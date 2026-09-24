@@ -3,6 +3,9 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import type { Profile, UserRole } from "../types/database";
+import { resetVendorStore } from "./useVendorStore";
+import { resetCustomerStore } from "./useCustomerStore";
+import { resetDriverStore } from "./useDriverStore";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -26,6 +29,8 @@ interface AuthState {
   fetchProfile: () => Promise<void>;
   clearError: () => void;
   initialize: () => Promise<void>;
+  pendingRoleSelection: boolean;
+  setPendingRoleSelection: (v: boolean) => void;
 }
 
 interface SignUpParams {
@@ -51,6 +56,8 @@ export const useAuthStore = create<AuthState>()(
       session: null,
       isLoading: false,
       error: null,
+      pendingRoleSelection: false,
+      setPendingRoleSelection: (v) => set({ pendingRoleSelection: v }),
 
       // ── Initialize: restore session on app load ───────────────────────────
       initialize: async () => {
@@ -73,12 +80,35 @@ export const useAuthStore = create<AuthState>()(
       fetchProfile: async () => {
         const user = get().user ?? (await supabase.auth.getUser()).data.user;
         if (!user) return;
+
+        // maybeSingle, not single: a missing row is a real, expected
+        // outcome here (the account was deleted directly in the
+        // database, or a signup that never finished), not an error to
+        // swallow. single() would throw on zero rows and the catch-all
+        // "do nothing on error" that used to sit here left whatever
+        // stale profile was cached in localStorage on screen — exactly
+        // the bug where deleting a row in Supabase didn't sign the user
+        // out client-side.
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", user.id)
-          .single();
-        if (!error && data) set({ profile: data as Profile });
+          .maybeSingle();
+
+        if (error) {
+          console.error("Failed to fetch profile:", error);
+          return;
+        }
+
+        if (!data) {
+          // The account this session belongs to no longer exists.
+          // Continuing to show a cached profile would mean a deleted
+          // account still looks logged in and functional.
+          await get().signOut();
+          return;
+        }
+
+        set({ profile: data as Profile });
       },
 
       // ── Sign up ───────────────────────────────────────────────────────────
@@ -89,7 +119,7 @@ export const useAuthStore = create<AuthState>()(
             email,
             password,
             options: {
-              data: { name, phone }, // stored in auth.users.raw_user_meta_data
+              data: { name, phone }, // stored in auth.users.raw_user_meta_data, read by the trigger
               emailRedirectTo: `${window.location.origin}/verify`,
             },
           });
@@ -97,26 +127,18 @@ export const useAuthStore = create<AuthState>()(
           if (error) throw error;
           if (!data.user) throw new Error("Signup failed — no user returned");
 
-          // Insert into public.profiles (role will be set on role-select page)
-          const { error: profileError } = await supabase.from("profiles").insert({
-            id: data.user.id,
-            email,
-            name,
-            phone,
-            role: "customer", // default; overwritten on /role-select
-          });
+          // Profile row is created automatically by the handle_new_user trigger.
+          // No client-side insert needed — and none possible pre-confirmation anyway.
 
-          if (profileError && profileError.code !== "23505") {
-            // 23505 = unique violation (profile already exists — safe to ignore)
-            throw profileError;
-          }
-
-          set({ user: data.user, session: data.session });
+          set({ user: data.user, session: data.session, pendingRoleSelection: true });
           return { error: null };
         } catch (err) {
-          const msg = (err as AuthError).message ?? "Signup failed. Please try again.";
-          set({ error: msg });
-          return { error: msg };
+          const detail = (err as any)?.details ? ` — ${(err as any).details}` : "";
+          const code = (err as any)?.code ? ` [${(err as any).code}]` : "";
+          const msg = (err as any)?.message ?? "Signup failed. Please try again.";
+          console.error("Signup error:", err);
+          set({ error: msg + detail + code });
+          return { error: msg + detail + code };
         } finally {
           set({ isLoading: false });
         }
@@ -175,7 +197,6 @@ export const useAuthStore = create<AuthState>()(
       signInWithPhone: async (phone: string) => {
         set({ isLoading: true, error: null });
         try {
-          // Normalise to E.164 (+254...)
           const normalised = phone.startsWith("0")
             ? "+254" + phone.slice(1)
             : phone.startsWith("254")
@@ -275,6 +296,7 @@ export const useAuthStore = create<AuthState>()(
           if (error) throw error;
           set((state) => ({
             profile: state.profile ? { ...state.profile, role } : null,
+            pendingRoleSelection: false,
           }));
           return { error: null };
         } catch (err) {
@@ -289,7 +311,15 @@ export const useAuthStore = create<AuthState>()(
       // ── Sign out ──────────────────────────────────────────────────────────
       signOut: async () => {
         await supabase.auth.signOut();
-        set({ user: null, profile: null, session: null, error: null });
+        set({ user: null, profile: null, session: null, error: null, pendingRoleSelection: false });
+        // Each role store persists its own profile/business/driver state
+        // to localStorage independently of this store. Signing out here
+        // without clearing those left exactly the bug being fixed: a
+        // vendor/customer/driver dashboard could still show the last
+        // signed-in person's cached data after this function returned.
+        resetVendorStore();
+        resetCustomerStore();
+        resetDriverStore();
       },
 
       clearError: () => set({ error: null }),
@@ -298,7 +328,7 @@ export const useAuthStore = create<AuthState>()(
       name: "majilink-auth-store",
       storage: createJSONStorage(() => localStorage),
       // Only persist non-sensitive state; Supabase manages the actual token
-      partialize: (state) => ({ profile: state.profile }),
+      partialize: (state) => ({ profile: state.profile, pendingRoleSelection: state.pendingRoleSelection }),
     }
   )
 );

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Phone, MapPin, AlertTriangle, X, CheckCircle } from "lucide-react";
+import { Phone, MapPin, AlertTriangle, X, CheckCircle, Package } from "lucide-react";
 import type { ActiveDelivery } from "../../../types/driver";
 
 interface Props {
   delivery: ActiveDelivery;
+  onConfirmPickup: () => void;
   onMarkDelivered: () => void;
   onReportIssue: (reason: string) => void;
 }
@@ -18,12 +19,15 @@ const ISSUE_REASONS = [
 
 export default function ActiveDeliveryCard({
   delivery,
+  onConfirmPickup,
   onMarkDelivered,
   onReportIssue,
 }: Props) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [showIssue, setShowIssue] = useState(false);
   const [selectedReason, setSelectedReason] = useState("");
+
+  const isEnRoute = delivery.status === "en_route";
 
   const minutesElapsed = Math.floor(
     (Date.now() - new Date(delivery.assignedAt).getTime()) / 60000
@@ -57,9 +61,9 @@ export default function ActiveDeliveryCard({
           </button>
           <button
             onClick={() => { onMarkDelivered(); setShowConfirm(false); }}
-            className="flex-2 py-3 rounded-2xl bg-[#4FD1C5] text-[#134E4A] text-sm font-semibold"
+            className="flex-[2] py-3 rounded-2xl bg-[#4FD1C5] text-[#134E4A] text-sm font-semibold"
           >
-            Yes, delivered ✓
+            Yes, delivered
           </button>
         </div>
       </div>
@@ -76,6 +80,9 @@ export default function ActiveDeliveryCard({
             <X className="w-5 h-5 text-white/60" />
           </button>
         </div>
+        <p className="text-white/50 text-xs -mt-2">
+          This will cancel the delivery and free you up for the next one.
+        </p>
         <div className="space-y-2">
           {ISSUE_REASONS.map((reason) => (
             <button
@@ -109,13 +116,15 @@ export default function ActiveDeliveryCard({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-white/55 text-xs">Order #{delivery.vendorOrderId}</p>
-          <p className="text-white font-semibold text-sm mt-0.5">Active delivery</p>
+          <p className="text-white font-semibold text-sm mt-0.5">
+            {isEnRoute ? "Active delivery" : "Head to pickup"}
+          </p>
         </div>
         <div className="text-right">
           <span className="bg-[#4FD1C5] text-[#134E4A] text-xs font-semibold px-3 py-1 rounded-full">
-            En route
+            {isEnRoute ? "En route" : "Awaiting pickup"}
           </span>
-          {eta > 0 && (
+          {isEnRoute && eta > 0 && (
             <p className="text-white/55 text-xs mt-1">~{eta} min left</p>
           )}
         </div>
@@ -125,16 +134,14 @@ export default function ActiveDeliveryCard({
       <div className="flex gap-3">
         {/* Visual line */}
         <div className="flex flex-col items-center pt-1 shrink-0">
-          <div className="w-2.5 h-2.5 rounded-full bg-[#4FD1C5]" />
+          <div className={`w-2.5 h-2.5 rounded-full ${!isEnRoute ? "bg-[#4FD1C5]" : "bg-white/30"}`} />
           <div className="w-px flex-1 bg-white/20 my-1" style={{ minHeight: 28 }} />
-          <div className="w-2.5 h-2.5 rounded-full border-2 border-white/50" />
+          <div className={`w-2.5 h-2.5 rounded-full ${isEnRoute ? "bg-[#4FD1C5]" : "border-2 border-white/50"}`} />
         </div>
         {/* Stops */}
         <div className="flex flex-col gap-4 flex-1 min-w-0">
           <div>
-            <p className="text-white/45 text-[10px] uppercase tracking-wide mb-0.5">
-              Pickup
-            </p>
+            <p className="text-white/45 text-[10px] mb-0.5">Pickup</p>
             <p className="text-white font-medium text-sm leading-snug">
               {delivery.pickup.name}
             </p>
@@ -143,9 +150,7 @@ export default function ActiveDeliveryCard({
             </p>
           </div>
           <div>
-            <p className="text-white/45 text-[10px] uppercase tracking-wide mb-0.5">
-              Drop-off
-            </p>
+            <p className="text-white/45 text-[10px] mb-0.5">Drop-off</p>
             <p className="text-white font-medium text-sm leading-snug">
               {delivery.dropoff.name}
             </p>
@@ -155,12 +160,16 @@ export default function ActiveDeliveryCard({
           </div>
         </div>
         {/* Distance chip */}
-        <div className="flex flex-col items-end justify-center gap-1 shrink-0">
-          <div className="bg-white/10 rounded-xl px-2.5 py-1.5 text-center">
-            <p className="text-white font-semibold text-sm">{delivery.distanceKm} km</p>
-            <p className="text-white/50 text-[10px]">away</p>
+        {delivery.distanceKm > 0 && (
+          <div className="flex flex-col items-end justify-center gap-1 shrink-0">
+            <div className="bg-white/10 rounded-xl px-2.5 py-1.5 text-center">
+              <p className="text-white font-semibold text-sm">
+                {delivery.distanceKm.toFixed(1)} km
+              </p>
+              <p className="text-white/50 text-[10px]">trip</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Customer strip */}
@@ -177,13 +186,15 @@ export default function ActiveDeliveryCard({
             KSh {delivery.totalAmount.toLocaleString()}
           </p>
         </div>
-        <a
-          href={`tel:${delivery.customerPhone}`}
-          className="w-8 h-8 rounded-full bg-white/12 flex items-center justify-center shrink-0"
-          aria-label={`Call ${delivery.customerName}`}
-        >
-          <Phone className="w-4 h-4 text-[#4FD1C5]" />
-        </a>
+        {delivery.customerPhone && (
+          <a
+            href={`tel:${delivery.customerPhone}`}
+            className="w-8 h-8 rounded-full bg-white/12 flex items-center justify-center shrink-0"
+            aria-label={`Call ${delivery.customerName}`}
+          >
+            <Phone className="w-4 h-4 text-[#4FD1C5]" />
+          </a>
+        )}
       </div>
 
       {/* Earnings chip */}
@@ -194,24 +205,45 @@ export default function ActiveDeliveryCard({
         </p>
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-2.5">
-        <a
-          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(delivery.dropoff.address + ', Eldoret, Kenya')}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex-1 py-3 rounded-2xl bg-white/12 border border-white/20 text-white text-sm font-medium flex items-center justify-center gap-2"
-        >
-          <MapPin className="w-4 h-4 text-[#4FD1C5]" />
-          Navigate
-        </a>
-        <button
-          onClick={() => setShowConfirm(true)}
-          className="flex-2 py-3 rounded-2xl bg-[#4FD1C5] text-[#134E4A] text-sm font-bold"
-        >
-          Mark as delivered
-        </button>
-      </div>
+      {/* Actions — differ by stage */}
+      {!isEnRoute ? (
+        <div className="flex gap-2.5">
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(delivery.pickup.address)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 py-3 rounded-2xl bg-white/12 border border-white/20 text-white text-sm font-medium flex items-center justify-center gap-2"
+          >
+            <MapPin className="w-4 h-4 text-[#4FD1C5]" />
+            Navigate to pickup
+          </a>
+          <button
+            onClick={onConfirmPickup}
+            className="flex-[2] py-3 rounded-2xl bg-[#4FD1C5] text-[#134E4A] text-sm font-bold flex items-center justify-center gap-2"
+          >
+            <Package className="w-4 h-4" />
+            Confirm pickup
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2.5">
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(delivery.dropoff.address)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 py-3 rounded-2xl bg-white/12 border border-white/20 text-white text-sm font-medium flex items-center justify-center gap-2"
+          >
+            <MapPin className="w-4 h-4 text-[#4FD1C5]" />
+            Navigate
+          </a>
+          <button
+            onClick={() => setShowConfirm(true)}
+            className="flex-[2] py-3 rounded-2xl bg-[#4FD1C5] text-[#134E4A] text-sm font-bold"
+          >
+            Mark as delivered
+          </button>
+        </div>
+      )}
 
       {/* Report issue */}
       <button

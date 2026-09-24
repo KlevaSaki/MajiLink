@@ -1,4 +1,4 @@
-import { ArrowRight, Star } from "lucide-react";
+import { ArrowRight, Star, PackageSearch } from "lucide-react";
 import type { CompletedTrip } from "../../../types/driver";
 
 interface Props {
@@ -24,16 +24,30 @@ const INITIALS_PALETTE = [
   "bg-[#F0FDF4] text-[#166534]",
 ];
 
+const STATUS_LABEL: Record<CompletedTrip["status"], string> = {
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  assigned: "Assigned",
+  en_route: "En route",
+};
+
+const STATUS_STYLE: Record<CompletedTrip["status"], string> = {
+  delivered: "text-[#0F6E56]",
+  cancelled: "text-red-400",
+  assigned: "text-[#854F0B]",
+  en_route: "text-[#4338CA]",
+};
+
 export default function TripHistoryList({ trips, showAll = false }: Props) {
   const displayed = showAll ? trips : trips.slice(0, 5);
 
   if (displayed.length === 0) {
     return (
       <div className="bg-white border border-[#D6D3D1] rounded-2xl p-8 text-center">
-        <p className="text-3xl mb-2">🛵</p>
+        <PackageSearch className="w-7 h-7 text-gray-300 mx-auto mb-2" />
         <p className="text-sm font-medium text-gray-700">No trips yet today</p>
         <p className="text-xs text-gray-400 mt-1">
-          Go online to start receiving delivery assignments
+          Go online to start receiving delivery jobs
         </p>
       </div>
     );
@@ -70,9 +84,7 @@ export default function TripHistoryList({ trips, showAll = false }: Props) {
                     isDelivered ? "text-[#134E4A]" : "text-gray-400"
                   }`}
                 >
-                  {isDelivered
-                    ? `KSh ${trip.earnings.toLocaleString()}`
-                    : "—"}
+                  {isDelivered ? `KSh ${trip.earnings.toLocaleString()}` : "—"}
                 </p>
                 {trip.rating && isDelivered && (
                   <div className="flex items-center justify-end gap-0.5 mt-0.5">
@@ -94,20 +106,22 @@ export default function TripHistoryList({ trips, showAll = false }: Props) {
 
             {/* Meta */}
             <div className="flex items-center gap-3 mt-1.5">
-              <span className="text-xs text-gray-400">
-                {trip.distanceKm} km
-              </span>
-              <span className="text-gray-300">·</span>
-              <span className="text-xs text-gray-400">
-                {trip.durationMinutes} min
-              </span>
-              <span className="text-gray-300">·</span>
-              <span
-                className={`text-xs font-medium ${
-                  isDelivered ? "text-[#0F6E56]" : "text-red-400"
-                }`}
-              >
-                {isDelivered ? "Delivered" : "Cancelled"}
+              {trip.distanceKm > 0 && (
+                <>
+                  <span className="text-xs text-gray-400">
+                    {trip.distanceKm.toFixed(1)} km
+                  </span>
+                  <span className="text-gray-300">·</span>
+                </>
+              )}
+              {trip.durationMinutes > 0 && (
+                <>
+                  <span className="text-xs text-gray-400">{trip.durationMinutes} min</span>
+                  <span className="text-gray-300">·</span>
+                </>
+              )}
+              <span className={`text-xs font-medium ${STATUS_STYLE[trip.status]}`}>
+                {STATUS_LABEL[trip.status]}
               </span>
             </div>
           </div>
