@@ -1,5 +1,7 @@
-import { Phone, ClipboardList, CheckCircle2, Bike, Home, Store, Check } from "lucide-react";
+import { useState } from "react";
+import { Phone, ClipboardList, CheckCircle2, Bike, Home, Store, Check, Wallet } from "lucide-react";
 import type { Order, OrderStatus } from "../../../types/index";
+import PaymentPrompt from "./PaymentPrompt";
 
 interface Step {
   key: OrderStatus;
@@ -30,6 +32,9 @@ interface Props {
 }
 
 export default function OrderTracker({ order, onCancel }: Props) {
+  const [showPayment, setShowPayment] = useState(false);
+  const needsPayment = order.status === "delivered" && order.paymentStatus !== "paid";
+
   return (
     <div className="bg-white rounded-3xl border border-[#D6D3D1] p-5 space-y-4">
       {/* Vendor + status */}
@@ -47,14 +52,22 @@ export default function OrderTracker({ order, onCancel }: Props) {
         </div>
         <span
           className={`text-xs font-medium px-3 py-1 rounded-full shrink-0 ${
-            order.status === "en_route"
+            order.status === "delivered"
+              ? order.paymentStatus === "paid"
+                ? "bg-[#E1F5EE] text-[#0F6E56]"
+                : "bg-[#FFF7ED] text-[#854F0B]"
+              : order.status === "en_route"
               ? "bg-[#E1F5EE] text-[#0F6E56]"
               : order.status === "confirmed"
               ? "bg-blue-50 text-blue-700"
               : "bg-yellow-50 text-yellow-700"
           }`}
         >
-          {order.status === "en_route"
+          {order.status === "delivered"
+            ? order.paymentStatus === "paid"
+              ? "Paid"
+              : "Payment due"
+            : order.status === "en_route"
             ? "On the way"
             : order.status === "confirmed"
             ? "Confirmed"
@@ -123,7 +136,7 @@ export default function OrderTracker({ order, onCancel }: Props) {
               {order.driver.name}
             </p>
             <p className="text-xs text-gray-500">
-              Arrives in ~{order.driver.etaMinutes} min · {order.driver.vehicle}
+              {order.status === "delivered" ? "Delivered by" : `Arrives in ~${order.driver.etaMinutes} min`} · {order.driver.vehicle}
             </p>
           </div>
           <a
@@ -136,7 +149,26 @@ export default function OrderTracker({ order, onCancel }: Props) {
         </div>
       )}
 
-      {/* Cancel */}
+      {/* Pay on delivery */}
+      {needsPayment && (
+        <div className="bg-[#FFF7ED] border border-[#F5DEB0] rounded-2xl p-4 space-y-2.5">
+          <div className="flex items-center gap-2">
+            <Wallet className="w-4 h-4 text-[#854F0B] shrink-0" />
+            <p className="text-sm font-semibold text-[#854F0B]">Your order has arrived</p>
+          </div>
+          <p className="text-xs text-[#854F0B]/80">
+            Pay KSh {order.totalAmount.toLocaleString()} by M-Pesa to complete this order.
+          </p>
+          <button
+            onClick={() => setShowPayment(true)}
+            className="w-full bg-[#134E4A] text-white text-sm font-semibold rounded-xl py-2.5 hover:opacity-90 transition"
+          >
+            Pay now
+          </button>
+        </div>
+      )}
+
+      {/* Cancel — only while nothing has shipped yet */}
       {(order.status === "pending" || order.status === "confirmed") && (
         <button
           onClick={() => onCancel(order.id)}
@@ -145,6 +177,8 @@ export default function OrderTracker({ order, onCancel }: Props) {
           Cancel Order
         </button>
       )}
+
+      {showPayment && <PaymentPrompt order={order} onClose={() => setShowPayment(false)} />}
     </div>
   );
 }

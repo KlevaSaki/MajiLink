@@ -1,7 +1,14 @@
 import type { InventoryCategory } from "./vendor";
-import type { UserRole } from "./database";
+import type { Database } from "./database";
 
-export type { UserRole };
+// Defined here, not imported from database.ts — that file is now
+// regenerated wholesale by the Supabase CLI (supabase gen types
+// typescript), which only knows the raw schema. Postgres has role as a
+// plain text column, not an enum, so this union is an app-level
+// constraint the generated type can't express — hand-maintained here
+// is correct, not a workaround.
+export type UserRole = "customer" | "vendor" | "driver";
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 
 // Customer-facing subset of the full DB order status (OrderStatusDB in
 // database.ts). The DB also has "assigned" and "declined" — the customer

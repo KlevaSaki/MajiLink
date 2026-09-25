@@ -9,17 +9,39 @@
 //   MPESA_ENV                — "sandbox" or "production"
 //   MPESA_CALLBACK_URL        — this project's mpesa-callback function URL,
 //                                e.g. https://<project-ref>.supabase.co/functions/v1/mpesa-callback
-//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY — already present in every
-//                                Edge Function's environment automatically.
+//   SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY — already
+//                                present in every Edge Function's
+//                                environment automatically.
 //
 // This function must run with the service role (not the anon key) for
 // the orders/mpesa_transactions writes, since customers have no INSERT
 // policy on mpesa_transactions by design — only server code that has
 // actually talked to Safaricom may create a payment record. The caller's
 // own JWT is still checked, to confirm they own the order being paid for.
+//
+// CORS: this function is called directly from the browser (via
+// supabase.functions.invoke), unlike mpesa-callback which Safaricom's
+// server calls. A browser sends a CORS preflight (OPTIONS) request
+// first, and Deno's raw serve() doesn't answer that or attach CORS
+// headers on its own — every response below, including the OPTIONS
+// handler, must carry them or the browser silently blocks the real
+// request before this function's own logic ever runs.
 
 import { serve } from "https://deno.land/std@0.203.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 const MPESA_ENV = Deno.env.get("MPESA_ENV") ?? "sandbox";
 const BASE_URL =
@@ -58,19 +80,21 @@ async function getAccessToken(): Promise<string> {
 }
 
 serve(async (req) => {
+  // Preflight — must return 200 with the CORS headers and no body work,
+  // before any of the actual request handling below.
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   try {
     const { order_id, phone } = await req.json();
     if (!order_id || !phone) {
-      return new Response(JSON.stringify({ error: "order_id and phone are required" }), {
-        status: 400,
-      });
+      return jsonResponse({ error: "order_id and phone are required" }, 400);
     }
 
     const normalizedPhone = normalizePhone(String(phone));
     if (!normalizedPhone) {
-      return new Response(JSON.stringify({ error: "Enter a valid Kenyan phone number" }), {
-        status: 400,
-      });
+      return jsonResponse({ error: "Enter a valid Kenyan phone number" }, 400);
     }
 
     // Two clients: one scoped to the caller's own JWT (to verify they
@@ -90,23 +114,29 @@ serve(async (req) => {
 
     const { data: order, error: orderError } = await callerClient
       .from("orders")
-      .select("id, customer_id, total_amount, payment_status")
+      .select("id, customer_id, total_amount, payment_status, businesses:business_id ( business_name )")
       .eq("id", order_id)
       .single();
 
     if (orderError || !order) {
-      return new Response(JSON.stringify({ error: "Order not found" }), { status: 404 });
+      return jsonResponse({ error: "Order not found" }, 404);
     }
     if (order.payment_status === "paid") {
-      return new Response(JSON.stringify({ error: "This order is already paid" }), {
-        status: 409,
-      });
+      return jsonResponse({ error: "This order is already paid" }, 409);
     }
 
     const shortcode = Deno.env.get("MPESA_SHORTCODE")!;
     const passkey = Deno.env.get("MPESA_PASSKEY")!;
     const timestamp = formatTimestamp(new Date());
     const password = btoa(`${shortcode}${passkey}${timestamp}`);
+
+    // AccountReference is capped at 12 characters by Daraja — this is
+    // the closest thing to "showing the vendor" the API allows. The
+    // prompt's top-level business name is a property of the shortcode
+    // being charged (MajiLink's, in production), not something any
+    // per-request field can override.
+    const vendorName = (order as any).businesses?.business_name as string | undefined;
+    const accountReference = (vendorName ?? `Order${order.id}`).slice(0, 12);
 
     const accessToken = await getAccessToken();
 
@@ -126,8 +156,8 @@ serve(async (req) => {
         PartyB: shortcode,
         PhoneNumber: normalizedPhone,
         CallBackURL: Deno.env.get("MPESA_CALLBACK_URL"),
-        AccountReference: `MajiLink-${order.id}`,
-        TransactionDesc: `MajiLink order #${order.id}`,
+        AccountReference: accountReference,
+        TransactionDesc: `Order #${order.id}`.slice(0, 13),
       }),
     });
 
@@ -135,9 +165,9 @@ serve(async (req) => {
 
     if (!stkRes.ok || stkJson.ResponseCode !== "0") {
       console.error("STK push rejected by Daraja:", stkJson);
-      return new Response(
-        JSON.stringify({ error: stkJson.errorMessage ?? "M-Pesa request was rejected" }),
-        { status: 502 }
+      return jsonResponse(
+        { error: stkJson.errorMessage ?? "M-Pesa request was rejected" },
+        502
       );
     }
 
@@ -163,14 +193,9 @@ serve(async (req) => {
       })
       .eq("id", order.id);
 
-    return new Response(
-      JSON.stringify({ success: true, checkoutRequestId: stkJson.CheckoutRequestID }),
-      { headers: { "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ success: true, checkoutRequestId: stkJson.CheckoutRequestID });
   } catch (err) {
     console.error("initiate-mpesa-payment failed:", err);
-    return new Response(JSON.stringify({ error: "Something went wrong. Please try again." }), {
-      status: 500,
-    });
+    return jsonResponse({ error: "Something went wrong. Please try again." }, 500);
   }
 });

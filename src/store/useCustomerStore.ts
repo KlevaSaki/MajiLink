@@ -106,7 +106,7 @@ export const useCustomerStore = create<CustomerStore>()(
               fullName: profile.name,
               email: profile.email,
               phone: profile.phone,
-              role: profile.role,
+              role: profile.role as User["role"],
               avatarInitials: initials(profile.name),
               location: address?.address_line ?? "",
               latitude: address?.lat ?? 0,
@@ -137,12 +137,25 @@ export const useCustomerStore = create<CustomerStore>()(
 
       getActiveOrder: () =>
         get().orders.find(
-          (o) => o.status === "pending" || o.status === "confirmed" || o.status === "en_route"
+          (o) =>
+            o.status === "pending" ||
+            o.status === "confirmed" ||
+            o.status === "en_route" ||
+            // Delivered-but-unpaid stays "active" — otherwise the pay
+            // prompt in OrderTracker would never actually be reachable,
+            // since it only renders for whatever this function returns.
+            (o.status === "delivered" && o.paymentStatus !== "paid")
         ),
 
       getRecentOrders: () =>
         get()
-          .orders.filter((o) => o.status === "delivered" || o.status === "cancelled")
+          .orders.filter(
+            (o) =>
+              o.status === "cancelled" ||
+              // Only once paid does a delivered order move out of the
+              // active view and into history — see getActiveOrder.
+              (o.status === "delivered" && o.paymentStatus === "paid")
+          )
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .slice(0, 5),
 
@@ -150,7 +163,10 @@ export const useCustomerStore = create<CustomerStore>()(
         const now = new Date();
         const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthly = get().orders.filter(
-          (o) => o.status === "delivered" && new Date(o.createdAt) >= monthStart
+          (o) =>
+            o.status === "delivered" &&
+            o.paymentStatus === "paid" &&
+            new Date(o.createdAt) >= monthStart
         );
         return {
           totalItems: monthly.reduce((sum, o) => sum + o.item.quantity, 0),

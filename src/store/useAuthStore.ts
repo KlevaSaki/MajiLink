@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
-import type { Profile, UserRole } from "../types/database";
+import type { Profile, UserRole } from "../types/index";
 import { resetVendorStore } from "./useVendorStore";
 import { resetCustomerStore } from "./useCustomerStore";
 import { resetDriverStore } from "./useDriverStore";

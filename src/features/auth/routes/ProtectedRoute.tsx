@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Droplets } from "lucide-react";
 import { useAuthStore } from "../../../store/useAuthStore";
-import type { UserRole } from "../../../types/database";
+import type { UserRole } from "../../../types/index";
 
 interface Props {
   children: React.ReactNode;
@@ -26,7 +26,7 @@ export default function ProtectedRoute({ children, allowedRoles }: Props) {
   useEffect(() => {
     if (isLoading) return;
     if (!user) { navigate("/"); return; }
-    if (allowedRoles && profile && !allowedRoles.includes(profile.role)) {
+    if (allowedRoles && profile && !allowedRoles.includes(profile.role as UserRole)) {
       const dest =
         profile.role === "vendor" ? "/vendor"
         : profile.role === "driver" ? "/driver"

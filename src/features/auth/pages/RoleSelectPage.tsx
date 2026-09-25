@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { User, Store, Truck, Loader2 } from "lucide-react";
 import { useAuthStore } from "../../../store/useAuthStore";
-import type { UserRole } from "../../../types/database";
+import type { UserRole } from "../../../types/index";
 
 const ROLES: { role: UserRole; icon: React.ElementType; title: string; description: string }[] = [
   {

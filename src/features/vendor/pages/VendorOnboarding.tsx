@@ -13,7 +13,6 @@ import {
   Navigation,
 } from "lucide-react";
 import { useVendorStore } from "../../../store/useVendorStore";
-import { useAuthStore } from "../../../store/useAuthStore";
 import { getCatalog, getBrands, type CatalogItem } from "../../../data/vendorProductCatalog";
 import { getCurrentPosition, GEOLOCATION_MESSAGES } from "../../../lib/geolocation";
 import type { InventoryCategory } from "../../../types/vendor";
@@ -58,7 +57,6 @@ function ProductThumb({ src, alt }: { src?: string; alt: string }) {
 
 export default function VendorOnboarding() {
   const navigate = useNavigate();
-  const user = useAuthStore((s) => s.user);
   const updateProfile = useVendorStore((s) => s.updateProfile);
   const addInventoryItem = useVendorStore((s) => s.addInventoryItem);
 

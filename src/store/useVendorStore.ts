@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { supabase } from "../lib/supabase";
+import type { Database } from "../types/database";
 import { fetchVendorOrders, subscribeVendorOrders, type Unsubscribe } from "../lib/orders";
 import type {
   VendorProfile,
@@ -483,7 +484,7 @@ async function persistProfile(
   const user = userData.user;
   if (!user) return;
 
-  const dbUpdates: Record<string, unknown> = {};
+  const dbUpdates: Database["public"]["Tables"]["businesses"]["Update"] = {};
   if (updates.businessName !== undefined) dbUpdates.business_name = updates.businessName;
   if (updates.location !== undefined) dbUpdates.location = updates.location;
   if (updates.latitude !== undefined) dbUpdates.latitude = updates.latitude;

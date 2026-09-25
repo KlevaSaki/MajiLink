@@ -6,6 +6,6 @@ import RoleSelectPage from "../pages/RoleSelectPage";
 export const authRoutes = [
   <Route key="register" path="/" element={<RegisterPage />} />,
   <Route key="login" path="/login" element={<LoginPage />} />,
-  <Route key="register" path="/role-select" element={<RoleSelectPage />} />,
+  <Route key="role-select" path="/role-select" element={<RoleSelectPage />} />,
   
 ];

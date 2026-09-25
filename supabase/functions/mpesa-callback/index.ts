@@ -123,7 +123,26 @@ serve(async (req) => {
     }
     // If either coordinate is missing, driverPayout stays 0 rather than
     // guessing — same "don't invent a number" rule as the client code.
-    const vendorPayout = order ? Math.max(0, order.total_amount - driverPayout) : 0;
+
+    // Platform commission comes out of the vendor's share, not added on
+    // top of what the customer pays — the customer's total never
+    // changes because of this. 0.5% of the vendor's gross revenue
+    // (total minus the driver's fee, since the delivery fee was never
+    // the vendor's money to begin with).
+    const PLATFORM_COMMISSION_RATE = 0.005;
+    const vendorGross = order ? Math.max(0, order.total_amount - driverPayout) : 0;
+    const platformCommission = Math.round(vendorGross * PLATFORM_COMMISSION_RATE * 100) / 100;
+
+    // Deliberately 0. Do not put a real rate here without an actual,
+    // confirmed tax rule from an accountant — VAT registration status,
+    // whether water delivery is VAT-exempt/zero-rated in Kenya, and who
+    // is legally the right party to hold this money are all open
+    // questions that code cannot answer. This column exists so the
+    // number has somewhere to go once that answer exists, not to
+    // pretend it's already been worked out.
+    const taxReserved = 0;
+
+    const vendorPayout = Math.max(0, vendorGross - platformCommission - taxReserved);
 
     await admin
       .from("mpesa_transactions")
@@ -144,6 +163,8 @@ serve(async (req) => {
         mpesa_receipt: mpesaReceipt,
         driver_payout: driverPayout,
         vendor_payout: vendorPayout,
+        platform_commission: platformCommission,
+        tax_reserved: taxReserved,
         paid_at: new Date().toISOString(),
       })
       .eq("id", txn.order_id);
