@@ -6,6 +6,7 @@ import type { Profile, UserRole } from "../types/index";
 import { resetVendorStore } from "./useVendorStore";
 import { resetCustomerStore } from "./useCustomerStore";
 import { resetDriverStore } from "./useDriverStore";
+import { showInfo } from "../lib/toast";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,18 +61,48 @@ export const useAuthStore = create<AuthState>()(
       setPendingRoleSelection: (v) => set({ pendingRoleSelection: v }),
 
       // ── Initialize: restore session on app load ───────────────────────────
-      initialize: async () => {
+            initialize: async () => {
         set({ isLoading: true });
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           set({ session, user: session.user });
           await get().fetchProfile();
         }
-        // Listen for auth state changes (OAuth callbacks, token refresh, etc.)
-        supabase.auth.onAuthStateChange(async (_event, session) => {
-          set({ session, user: session?.user ?? null });
-          if (session) await get().fetchProfile();
-          else set({ profile: null });
+        // Listen for auth state changes (OAuth callbacks, token refresh,
+        // sign-out — both the explicit kind and Supabase's own forced
+        // kind when a refresh token expires or is revoked). Centralizing
+        // the cleanup here, rather than only in the explicit signOut()
+        // action, is the actual fix: supabase.auth.signOut() itself
+        // fires this same listener with a null session, so a single
+        // handler correctly covers both cases instead of only the one
+        // the user triggered on purpose.
+        supabase.auth.onAuthStateChange(async (_event, newSession) => {
+          const hadSession = !!get().session;
+          set({ session: newSession, user: newSession?.user ?? null });
+
+          if (newSession) {
+            await get().fetchProfile();
+            return;
+          }
+
+          set({ profile: null, pendingRoleSelection: false, error: null });
+          // Each role store persists its own profile/business/driver
+          // state to localStorage independently of this one. Without
+          // resetting them here, a vendor/customer/driver dashboard
+          // could keep showing the previous person's cached data even
+          // though the auth session backing it is gone — true whether
+          // they clicked "Sign out" or Supabase silently ended the
+          // session for them.
+          resetVendorStore();
+          resetCustomerStore();
+          resetDriverStore();
+
+          // Only when a real session just ended — not on a fresh,
+          // never-authenticated page load, where hadSession is false
+          // and this event fires too but there's nothing to explain.
+          if (hadSession) {
+            showInfo("You've been signed out");
+          }
         });
         set({ isLoading: false });
       },
@@ -309,17 +340,13 @@ export const useAuthStore = create<AuthState>()(
       },
 
       // ── Sign out ──────────────────────────────────────────────────────────
-      signOut: async () => {
+            signOut: async () => {
+        // Cleanup (clearing local state, resetting the other three
+        // stores) now happens once, centrally, in the onAuthStateChange
+        // listener in initialize() — this call triggers that same
+        // listener with a null session, so duplicating the cleanup here
+        // would just do it twice.
         await supabase.auth.signOut();
-        set({ user: null, profile: null, session: null, error: null, pendingRoleSelection: false });
-        // Each role store persists its own profile/business/driver state
-        // to localStorage independently of this store. Signing out here
-        // without clearing those left exactly the bug being fixed: a
-        // vendor/customer/driver dashboard could still show the last
-        // signed-in person's cached data after this function returned.
-        resetVendorStore();
-        resetCustomerStore();
-        resetDriverStore();
       },
 
       clearError: () => set({ error: null }),

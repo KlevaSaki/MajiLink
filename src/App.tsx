@@ -1,6 +1,7 @@
 import './App.css'
 import { useEffect, Suspense, lazy } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster } from "sonner";
 import { Loader2, Droplets } from "lucide-react";
 import { useAuthStore } from "./store/useAuthStore";
 
@@ -47,6 +48,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <Toaster position="top-center" />
       <Suspense fallback={<RouteLoadingFallback />}>
         <Routes>
           {/* ── Public routes ── */}

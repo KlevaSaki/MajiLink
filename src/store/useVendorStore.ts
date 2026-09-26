@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { supabase } from "../lib/supabase";
 import type { Database } from "../types/database";
 import { fetchVendorOrders, subscribeVendorOrders, type Unsubscribe } from "../lib/orders";
+import { showError, showSuccess } from "../lib/toast";
 import type {
   VendorProfile,
   VendorOrder,
@@ -124,6 +125,7 @@ function pushStatus(
     .then(({ error }) => {
       if (error) {
         console.error(`Failed to set order ${orderId} to ${dbStatus}:`, error);
+        showError("Couldn't update that order. Please try again.");
         if (previous) {
           set((state) => ({
             orders: state.orders.map((o) => (o.id === orderId ? previous : o)),
@@ -340,6 +342,7 @@ export const useVendorStore = create<VendorStore>()(
           .then(({ error }) => {
             if (error) {
               console.error("Failed to update stock:", error);
+              showError("Couldn't update stock. Please try again.");
               if (previous !== undefined) {
                 set((state) => ({
                   inventory: state.inventory.map((i) =>
@@ -366,6 +369,7 @@ export const useVendorStore = create<VendorStore>()(
           .then(({ error }) => {
             if (error) {
               console.error("Failed to update price:", error);
+              showError("Couldn't update price. Please try again.");
               if (previous !== undefined) {
                 set((state) => ({
                   inventory: state.inventory.map((i) =>
@@ -384,6 +388,7 @@ export const useVendorStore = create<VendorStore>()(
         const businessId = get().businessId;
         if (!businessId) {
           console.error("Cannot save inventory item: no business loaded yet");
+          showError("Couldn't add item — try again in a moment.");
           set((state) => ({ inventory: state.inventory.filter((i) => i.id !== tempId) }));
           return;
         }
@@ -407,6 +412,7 @@ export const useVendorStore = create<VendorStore>()(
           .then(({ data, error }) => {
             if (error || !data) {
               console.error("Failed to save inventory item:", error);
+              showError("Couldn't add that item. Please try again.");
               set((state) => ({ inventory: state.inventory.filter((i) => i.id !== tempId) }));
               return;
             }
@@ -415,6 +421,7 @@ export const useVendorStore = create<VendorStore>()(
                 i.id === tempId ? mapProductRow(data) : i
               ),
             }));
+            showSuccess(`${item.name} added`);
           });
       },
 
@@ -430,6 +437,7 @@ export const useVendorStore = create<VendorStore>()(
           .then(({ error }) => {
             if (error) {
               console.error("Failed to delete inventory item:", error);
+              showError("Couldn't remove that item. Please try again.");
               if (removed) set((state) => ({ inventory: [...state.inventory, removed] }));
             }
           });
@@ -495,7 +503,10 @@ async function persistProfile(
 
   if (businessId) {
     const { error } = await supabase.from("businesses").update(dbUpdates).eq("id", businessId);
-    if (error) console.error("Failed to update business:", error);
+    if (error) {
+      console.error("Failed to update business:", error);
+      showError("Couldn't save your changes. Please try again.");
+    }
     return;
   }
 
@@ -515,6 +526,7 @@ async function persistProfile(
 
   if (error || !data) {
     console.error("Failed to create business:", error);
+    showError("Couldn't set up your business. Please try again.");
     return;
   }
 

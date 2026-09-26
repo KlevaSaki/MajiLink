@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { supabase } from "../lib/supabase";
 import { fetchCustomerOrders, mapCustomerOrder, ORDER_SELECT, subscribeCustomerOrders, type Unsubscribe } from "../lib/orders";
+import { showError } from "../lib/toast";
 import type { Order, User, MonthlyStats } from "../types/index";
 
 const EMPTY_USER: User = {
@@ -266,6 +267,7 @@ export const useCustomerStore = create<CustomerStore>()(
           .then(({ error }) => {
             if (error) {
               console.error("Failed to cancel order:", error);
+              showError("Couldn't cancel that order. Please try again.");
               if (previous) {
                 set((state) => ({
                   orders: state.orders.map((o) => (o.id === orderId ? previous : o)),
@@ -305,7 +307,10 @@ export const useCustomerStore = create<CustomerStore>()(
               is_default: true,
             });
 
-        if (error) console.error("Failed to save delivery location:", error);
+        if (error) {
+          console.error("Failed to save delivery location:", error);
+          showError("Couldn't save your location. Please try again.");
+        }
       },
 
       toggleNotif: () => set((state) => ({ isNotifOpen: !state.isNotifOpen })),

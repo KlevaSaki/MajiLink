@@ -12,6 +12,7 @@ import {
   type Unsubscribe,
 } from "../lib/orders";
 import { haversineKm } from "../lib/geo";
+import { showError, showSuccess } from "../lib/toast";
 import type {
   DriverProfile,
   ActiveDelivery,
@@ -386,6 +387,7 @@ export const useDriverStore = create<DriverStore>()(
 
         if (error) {
           console.error("Failed to claim order:", error);
+          showError("Couldn't claim that delivery. Please try again.");
           return false;
         }
 
@@ -395,6 +397,7 @@ export const useDriverStore = create<DriverStore>()(
           set((state) => ({
             availableJobs: state.availableJobs.filter((j) => j.orderId !== orderId),
           }));
+          showError("Someone else already claimed that delivery.");
           return false;
         }
 
@@ -425,6 +428,7 @@ export const useDriverStore = create<DriverStore>()(
 
         if (error) {
           console.error("Failed to mark picked up:", error);
+          showError("Couldn't confirm pickup. Please try again.");
           set({ activeDelivery: active }); // roll back
         }
       },
@@ -441,6 +445,7 @@ export const useDriverStore = create<DriverStore>()(
 
         if (error) {
           console.error("Failed to mark delivered:", error);
+          showError("Couldn't mark this delivered. Please try again.");
           return;
         }
 
@@ -472,6 +477,7 @@ export const useDriverStore = create<DriverStore>()(
           profile: { ...state.profile, status: "available" },
         }));
 
+        showSuccess("Delivery completed");
         await get().refreshAvailableJobs();
       },
 
@@ -480,7 +486,10 @@ export const useDriverStore = create<DriverStore>()(
         if (!active) return;
 
         const { error } = await reportDriverIssue(active.orderId, reason);
-        if (error) return; // reportDriverIssue already logged it
+        if (error) {
+          showError("Couldn't submit that report. Please try again.");
+          return; // reportDriverIssue already logged it
+        }
 
         const trip: CompletedTrip = {
           id: `trip_${active.orderId}`,
@@ -503,6 +512,7 @@ export const useDriverStore = create<DriverStore>()(
           profile: { ...state.profile, status: "available" },
         }));
 
+        showSuccess("Issue reported");
         await get().refreshAvailableJobs();
       },
 
@@ -519,6 +529,7 @@ export const useDriverStore = create<DriverStore>()(
           .eq("id", driverId);
         if (error) {
           console.error("Failed to go online:", error);
+          showError("Couldn't go online. Please try again.");
           set((state) => ({ profile: { ...state.profile, status: "offline" } }));
           return;
         }
@@ -545,10 +556,17 @@ export const useDriverStore = create<DriverStore>()(
           .from("drivers")
           .update({ is_online: false, status: "offline" })
           .eq("id", driverId);
-        if (error) console.error("Failed to go offline:", error);
+        if (error) {
+          console.error("Failed to go offline:", error);
+          showError("Couldn't go offline. Please try again.");
+        }
       },
 
       updateLocation: async (lat, lng) => {
+        // No toast here, deliberately — this fires continuously in the
+        // background while online (every geolocation update), so
+        // surfacing every transient failure would spam the driver with
+        // errors for something they didn't directly initiate.
         lastKnownLat = lat;
         lastKnownLng = lng;
         const driverId = get().driverId;
@@ -577,7 +595,12 @@ export const useDriverStore = create<DriverStore>()(
           .from("drivers")
           .update({ vehicle_type: vehicle })
           .eq("id", driverId);
-        if (error) console.error("Failed to update vehicle:", error);
+        if (error) {
+          console.error("Failed to update vehicle:", error);
+          showError("Couldn't save your vehicle. Please try again.");
+        } else {
+          showSuccess("Vehicle updated");
+        }
       },
     }),
     {
