@@ -225,6 +225,7 @@ export default function VendorDashboard() {
                 {profile.isOpen ? "Open" : "Closed"}
               </button>
               <button
+                onClick={() => setActiveTab("orders")}
                 className="relative w-9 h-9 rounded-full border border-white/20 bg-white/10 flex items-center justify-center"
                 aria-label="Notifications"
               >
@@ -232,6 +233,13 @@ export default function VendorDashboard() {
                 {newCount > 0 && (
                   <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-red-400 border border-[#134E4A]" />
                 )}
+              </button>
+              <button
+                onClick={() => setActiveTab("settings")}
+                className="w-9 h-9 rounded-full bg-[#4FD1C5] flex items-center justify-center text-[#134E4A] text-xs font-bold"
+                aria-label="Settings"
+              >
+                {initialsFrom(profile.businessName)}
               </button>
             </div>
           </div>
@@ -280,6 +288,7 @@ export default function VendorDashboard() {
               {profile.isOpen ? "Open" : "Closed"}
             </button>
             <button
+              onClick={() => setActiveTab("orders")}
               className="relative w-9 h-9 rounded-full border border-[#D6D3D1] bg-white flex items-center justify-center hover:bg-gray-50 transition"
               aria-label="Notifications"
             >

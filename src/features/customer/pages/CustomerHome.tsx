@@ -99,6 +99,13 @@ export default function CustomerDashboard() {
   const recentOrders = getRecentOrders();
   const firstName = user.fullName.split(" ")[0];
 
+  // Same condition OrderTracker uses to show its "Pay now" prompt — the
+  // bell should only ever count something the customer can actually
+  // act on, not an arbitrary always-on dot.
+  const needsAttentionCount = orders.filter(
+    (o) => o.status === "delivered" && o.paymentStatus !== "paid"
+  ).length;
+
   const orderHistory = [...orders]
     .filter((o) => o.status === "delivered" || o.status === "cancelled")
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -187,11 +194,14 @@ export default function CustomerDashboard() {
             </div>
             <div className="flex items-center gap-3">
               <button
+                onClick={() => setActiveTab("orders")}
                 className="relative w-9 h-9 rounded-full border border-white/20 bg-white/10 flex items-center justify-center"
                 aria-label="Notifications"
               >
                 <Bell className="w-5 h-5 text-white" />
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#4FD1C5] border border-[#134E4A]" />
+                {needsAttentionCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#4FD1C5] border border-[#134E4A]" />
+                )}
               </button>
               <button
                 onClick={() => setActiveTab("settings")}
@@ -218,11 +228,14 @@ export default function CustomerDashboard() {
         <div className="hidden md:flex items-center justify-between px-8 lg:px-10 h-16 border-b border-[#D6D3D1] bg-white sticky top-0 z-10">
           <h1 className="text-lg font-semibold text-[#134E4A]">{activeLabel}</h1>
           <button
+            onClick={() => setActiveTab("orders")}
             className="relative w-9 h-9 rounded-full border border-[#D6D3D1] bg-white flex items-center justify-center hover:bg-gray-50 transition"
             aria-label="Notifications"
           >
             <Bell className="w-4.5 h-4.5 text-[#134E4A]" />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#4FD1C5] border border-white" />
+            {needsAttentionCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#4FD1C5] border border-white" />
+            )}
           </button>
         </div>
 

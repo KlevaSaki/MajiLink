@@ -214,10 +214,14 @@ export default function DriverDashboard() {
                 {isOnline ? "Online" : "Offline"}
               </button>
               <button
+                onClick={() => setActiveTab("overview")}
                 className="relative w-9 h-9 rounded-full border border-white/20 bg-white/10 flex items-center justify-center"
                 aria-label="Notifications"
               >
                 <Bell className="w-5 h-5 text-white" />
+                {isOnline && availableJobs.length > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#4FD1C5] border border-[#134E4A]" />
+                )}
               </button>
               <button
                 onClick={() => setActiveTab("settings")}
@@ -259,10 +263,14 @@ export default function DriverDashboard() {
               {isOnline ? "Online" : "Offline"}
             </button>
             <button
+              onClick={() => setActiveTab("overview")}
               className="relative w-9 h-9 rounded-full border border-[#D6D3D1] bg-white flex items-center justify-center hover:bg-gray-50 transition"
               aria-label="Notifications"
             >
               <Bell className="w-4.5 h-4.5 text-[#134E4A]" />
+              {isOnline && availableJobs.length > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#4FD1C5] border border-white" />
+              )}
             </button>
           </div>
         </div>
